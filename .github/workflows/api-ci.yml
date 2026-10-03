@@ -1,0 +1,58 @@
+name: API CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - "feat/**"
+    paths:
+      - "services/api/**"
+      - ".github/workflows/api-ci.yml"
+
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - "services/api/**"
+      - ".github/workflows/api-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint and test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/api
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.9.17"
+          enable-cache: true
+          cache-dependency-glob: "services/api/uv.lock"
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Lint API
+        run: uv run ruff check .
+
+      - name: Test API
+        run: uv run pytest -q
